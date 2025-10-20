@@ -1,0 +1,216 @@
+version: "3.9"
+
+services:
+  koha:
+    image: teogramm/koha:24.11
+    restart: unless-stopped
+    ports:
+      - "8080:8080"  # OPAC
+      - "8081:8081"  # Staff Interface
+    networks:
+      - koha-prod
+    cap_add:
+      - DAC_READ_SEARCH
+      - SYS_NICE
+    volumes:
+      # Logs persistentes
+      - ./volumes/koha/logs:/var/log/koha
+      # Configuraciones de Koha
+      - ./volumes/koha/etc:/etc/koha
+      # Uploads y archivos de usuario
+      - ./volumes/koha/uploads:/var/lib/koha/uploads
+      # Covers y thumbnails
+      - ./volumes/koha/covers:/var/lib/koha/covers
+      # Plugins de Koha
+      - ./volumes/koha/plugins:/var/lib/koha/plugins
+      # Archivos de configuración base desde files/
+      - ../files/docker/templates:/docker/templates:ro
+      - ../files/etc/koha-envvars:/etc/koha-envvars:ro
+      - ../files/etc/cron.d:/etc/cron.d:ro
+      - ../files/etc/cron.daily:/etc/cron.daily:ro
+      - ../files/etc/cron.hourly:/etc/cron.hourly:ro
+      - ../files/etc/cron.monthly:/etc/cron.monthly:ro
+      - ../files/etc/logrotate.d:/etc/logrotate.d:ro
+      - ../files/etc/s6-overlay:/etc/s6-overlay:ro
+      # Configuraciones personalizadas de producción
+      - ./config/koha/koha-sites-prod.conf:/etc/koha/koha-sites.conf:ro
+      - ./config/koha/koha-common-prod.cnf:/etc/mysql/koha-common.cnf:ro
+    environment:
+      MYSQL_SERVER: db
+      MYSQL_USER: koha_prod
+      MYSQL_PASSWORD: ${KOHA_DB_PASSWORD}
+      DB_NAME: koha_production
+      MEMCACHED_SERVERS: memcached:11211
+      MB_HOST: rabbitmq
+      MB_PORT: 61613
+      MB_USER: koha
+      MB_PASS: ${RABBITMQ_PASSWORD}
+      # Variables para templates de koha-sites.conf
+      KOHA_DOMAIN: localhost
+      KOHA_INTRANET_PORT: 8081
+      KOHA_INTRANET_PREFIX: ""
+      KOHA_INTRANET_SUFFIX: ""
+      KOHA_OPAC_PORT: 8080
+      KOHA_OPAC_PREFIX: ""
+      KOHA_OPAC_SUFFIX: ""
+      # Variables de Zebra
+      ZEBRA_MARC_FORMAT: marc21
+      ZEBRA_LANGUAGE: en
+      BIBLIOS_INDEXING_MODE: dom
+      AUTHORITIES_INDEXING_MODE: dom
+      # Memcached
+      USE_MEMCACHED: "yes"
+      # Elasticsearch (deshabilitado por defecto)
+      USE_ELASTICSEARCH: "false"
+      # Idiomas
+      KOHA_LANGS: es-ES en
+      USE_Z3950: 1
+    env_file:
+      - .env
+      - .env.prod
+    depends_on:
+      - db
+      - rabbitmq
+      - memcached
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    volumes:
+      # Datos de la base de datos persistentes
+      - ./volumes/mariadb/data:/var/lib/mysql
+      # Configuraciones de MariaDB
+      - ./volumes/mariadb/conf:/etc/mysql/conf.d
+      # Backups
+      - ./volumes/mariadb/backups:/backups
+      # Scripts de inicialización
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: koha_production
+      MARIADB_USER: koha_prod
+      MARIADB_PASSWORD: ${KOHA_DB_PASSWORD}
+      MARIADB_CHARACTER_SET_SERVER: utf8mb4
+      MARIADB_COLLATION_SERVER: utf8mb4_unicode_ci
+    networks:
+      - koha-prod
+    ports:
+      - "3306:3306"  # Expuesto para backups externos
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=512M
+      --max-connections=200
+      --query-cache-size=32M
+      --query-cache-type=1
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    hostname: rabbitmq-koha-prod
+    volumes:
+      # Datos de RabbitMQ persistentes
+      - ./volumes/rabbitmq/data:/var/lib/rabbitmq
+      # Logs de RabbitMQ
+      - ./volumes/rabbitmq/logs:/var/log/rabbitmq
+      # Configuración de plugins
+      - ./rabbitmq_plugins:/etc/rabbitmq/enabled_plugins
+      # Configuraciones adicionales
+      - ./config/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    environment:
+      RABBITMQ_DEFAULT_USER: koha
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_NODENAME: rabbit@rabbitmq-koha-prod
+      # Solución para Windows - evitar problemas de permisos con cookie
+      RABBITMQ_USE_LONGNAME: "false"
+      RABBITMQ_ERLANG_COOKIE: "koha_rabbitmq_cookie_secure_2025"
+    networks:
+      - koha-prod
+    ports:
+      - "15672:15672"  # Management UI
+      - "5672:5672"    # AMQP
+      - "61613:61613"  # STOMP
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  memcached:
+    image: memcached:1.6-alpine
+    restart: unless-stopped
+    command: memcached -m 128 -c 1024 -I 10m
+    networks:
+      - koha-prod
+    healthcheck:
+      test: ["CMD", "timeout", "5", "bash", "-c", "echo stats | nc localhost 11211"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Servicio para backups automáticos
+  backup:
+    image: mariadb:11
+    restart: "no"
+    volumes:
+      - ./volumes/mariadb/backups:/backups
+      - ./scripts:/scripts
+    environment:
+      MYSQL_HOST: db
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      BACKUP_DATABASE: koha_production
+    networks:
+      - koha-prod
+    depends_on:
+      - db
+    profiles:
+      - backup
+    command: /scripts/backup.sh
+
+volumes:
+  # Volúmenes con nombres para facilitar el manejo
+  koha-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/koha/logs
+  
+  koha-etc:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/koha/etc
+
+  mariadb-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/mariadb/data
+
+  rabbitmq-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./volumes/rabbitmq/data
+
+networks:
+  koha-prod:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

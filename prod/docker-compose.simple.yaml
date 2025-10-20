@@ -1,0 +1,115 @@
+services:
+  koha:
+    image: teogramm/koha:24.11
+    restart: unless-stopped
+    ports:
+      - "8080:8080"  # OPAC
+      - "8081:8081"  # Staff Interface
+    networks:
+      - koha-prod
+    environment:
+      # Base de datos
+      MYSQL_SERVER: db
+      MYSQL_USER: koha_prod
+      MYSQL_PASSWORD: ${KOHA_DB_PASSWORD}
+      DB_NAME: koha_production
+      # Configuración de la instancia
+      KOHA_INSTANCE: default
+      KOHA_ADMINUSER: admin
+      KOHA_ADMINPASS: admin
+      # Memcached
+      MEMCACHED_SERVERS: memcached:11211
+      USE_MEMCACHED: "yes"
+      # RabbitMQ
+      MB_HOST: rabbitmq
+      MB_PORT: 61613
+      MB_USER: koha
+      MB_PASS: ${RABBITMQ_PASSWORD}
+      # Configuración de dominio
+      KOHA_DOMAIN: localhost
+      KOHA_INTRANET_PORT: 8081
+      KOHA_OPAC_PORT: 8080
+      # Idiomas
+      KOHA_LANGS: "es-ES en"
+      # Timezone
+      TZ: America/Mexico_City
+    depends_on:
+      - db
+      - memcached
+      - rabbitmq
+    volumes:
+      - koha_etc:/etc/koha
+      - koha_logs:/var/log/koha
+      - koha_uploads:/var/lib/koha/uploads
+      - koha_covers:/var/lib/koha/covers
+      - koha_plugins:/var/lib/koha/plugins
+
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: koha_production
+      MARIADB_USER: koha_prod
+      MARIADB_PASSWORD: ${KOHA_DB_PASSWORD}
+      MARIADB_CHARACTER_SET_SERVER: utf8mb4
+      MARIADB_COLLATION_SERVER: utf8mb4_unicode_ci
+    networks:
+      - koha-prod
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - db_backups:/backups
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max-connections=200
+      --innodb-buffer-pool-size=256M
+      --innodb-log-file-size=64M
+
+  memcached:
+    image: memcached:1.6-alpine
+    restart: unless-stopped
+    networks:
+      - koha-prod
+    command: memcached -m 64
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: koha
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_PASSWORD}
+    networks:
+      - koha-prod
+    ports:
+      - "15672:15672"  # Management UI
+      - "5672:5672"    # AMQP
+      - "61613:61613"  # STOMP
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./config/rabbitmq_plugins:/etc/rabbitmq/enabled_plugins
+
+networks:
+  koha-prod:
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: local
+  db_backups:
+    driver: local
+  koha_etc:
+    driver: local
+  koha_logs:
+    driver: local
+  koha_uploads:
+    driver: local
+  koha_covers:
+    driver: local
+  koha_plugins:
+    driver: local
+  rabbitmq_data:
+    driver: local

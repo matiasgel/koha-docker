@@ -1,0 +1,26 @@
+# Configuración de cliente MySQL para Koha en Producción
+# Basado en files/docker/templates/koha-common.cnf
+
+[client]
+host     = db
+user     = root
+password = ${MARIADB_ROOT_PASSWORD}
+port     = 3306
+socket   = /var/run/mysqld/mysqld.sock
+
+[mysql]
+default-character-set = utf8mb4
+
+[mysqldump]
+default-character-set = utf8mb4
+single-transaction
+routines
+triggers
+
+[koha]
+host     = db
+user     = koha_prod
+password = ${KOHA_DB_PASSWORD}
+database = koha_production
+port     = 3306
+default-character-set = utf8mb4
