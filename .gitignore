@@ -1,0 +1,70 @@
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de Docker
+.dockerignore
+
+# Backups generados
+*.zip
+koha-simple-*/
+koha-backup*/
+koha-restore*/
+backup-*/
+test-backup.sql
+
+# Volúmenes de Docker (datos sensibles)
+prod/volumes/mariadb/data/
+prod/volumes/rabbitmq/data/
+prod/volumes/koha/uploads/
+prod/volumes/koha/logs/
+
+# Variables de entorno con datos sensibles
+.env
+.env.local
+.env.production
+.env.staging
+
+# Archivos de configuración específicos del entorno
+*-local.*
+*-prod.*
+*-staging.*
+
+# Logs
+*.log
+logs/
+
+# Archivos temporales
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# IDE/Editor
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.sublime-*
+
+# Node.js (si se usa para alguna herramienta)
+node_modules/
+npm-debug.log*
+
+# Python (si se usan scripts de Python)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Archivos de certificados SSL
+*.pem
+*.key
+*.crt
+*.csr
+
+# Datos de base de datos exportados (excepto ejemplos)
+*.sql
+!examples/*.sql

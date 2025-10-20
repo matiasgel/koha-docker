@@ -1,41 +1,141 @@
-# koha-docker
+# Koha Docker con Soporte en Español 🇪🇸
 
-![Docker Image Version (tag latest semver)](https://img.shields.io/docker/v/teogramm/koha/latest)
+![Koha](https://img.shields.io/badge/Koha-24.11-blue)
+![Docker](https://img.shields.io/badge/Docker-Ready-green)
+![Spanish](https://img.shields.io/badge/Idioma-Español-red)
 
-A Koha Docker container which includes:
-* The Apache webserver serving the OPAC (Port 8080) and
-the Koha staff interface (Port 8081), configured to use Plack.
-* The Zebra server and indexer.
-* The Koha background jobs worker.
+Un setup completo de Koha con Docker que incluye:
+* ✅ **Soporte completo en español** (es-ES)
+* 🚀 **Scripts de backup automatizados**
+* 📚 **Guía de instalación en español**
+* 🐳 **Configuración Docker lista para producción**
+* 🔧 **Herramientas de migración y restauración**
 
-A fully functional Koha instance additionally requires:
-* A MySQL/MariaDB server.
-* A Memcached server.
-* A RabbitMQ server with the stomp pulgin enabled.
+## 🎯 Características Principales
 
-Elasticsearch is also supported, instead of Zebra.
+### 🐳 Contenedor Koha
+- **Apache webserver** sirviendo OPAC (Puerto 8080) y Staff Interface (Puerto 8081)
+- **Zebra server** e indexador para búsquedas
+- **Background jobs worker** para procesos asíncronos
+- **Plack** configurado para mejor rendimiento
 
-*Notice: SIP and Z3950 are still WIP.*
+### 🌐 Idiomas Soportados
+- **Español (es-ES)** - Completamente traducido
+- **Inglés (en-GB)** - Idioma por defecto
+- **Múltiples idiomas** disponibles (ver documentación)
 
-A separate RabbitMQ server with the stomp plugin is required as well as a Memcached server.
-Both can be easily created using the images available on Docker Hub.
+### 📦 Servicios Adicionales Requeridos
+- **MySQL/MariaDB** server
+- **Memcached** server  
+- **RabbitMQ** server con plugin stomp habilitado
 
-## Usage
-The image is available on [Docker Hub](https://hub.docker.com/r/teogramm/koha)
+*Nota: Elasticsearch también es soportado como alternativa a Zebra.*
 
-The main configuration environment variables are documented in
-[config-main.env](config-main.env).
+## 🚀 Inicio Rápido
 
-The username and password for the initial setup are the same as the database username and password.
+### 📋 Requisitos Previos
+- Docker y Docker Compose instalados
+- Puertos 8080 y 8081 disponibles
 
-Logs for stored under the `/var/log/koha` directory.
+### ⚡ Instalación Express
+```bash
+# Clonar repositorio
+git clone https://github.com/matiasgel/koha-docker.git
+cd koha-docker/examples
 
-In order to function, Koha requires a MySQL database, a Memcached server and a RabbitMQ server with the stomp plugin.
+# Iniciar servicios
+docker-compose up -d
 
-The provided [docker-compose file](examples/docker-compose.yaml) sets up all of these as containers. It provides an easy way to
-get a Koha insstance up and running. For a production environment it is recommened that each container is set up separately.
+# Esperar inicialización (2-3 minutos)
+# Acceder a: http://localhost:8081
+```
 
-## Credits
+### 🔑 Credenciales de Acceso
+- **Usuario**: `koha_teolib`
+- **Contraseña**: `example`
 
-Some scripts have been taken from https://gitlab.com/koha-community/docker/koha-docker and modified.
+## 📚 Documentación
+
+### 📖 Guías Disponibles
+- **[📋 Guía de Instalación Completa](GUIA_INSTALACION_KOHA.md)** - Instalación paso a paso en español
+- **[💾 Guía de Backup y Migración](backup-migration.md)** - Backup automático y migración
+- **[📄 Documentación de Backup](README-BACKUP.md)** - Resumen visual de métodos de backup
+
+### 🛠️ Scripts Incluidos
+- **`backup-simple.ps1`** - Backup rápido de datos esenciales
+- **`backup-koha.ps1`** - Backup completo con volúmenes
+- **`restore-koha.ps1`** - Restauración automatizada
+- **`migrate-to-github.ps1`** - Migración de repositorio
+
+## 🏗️ Configuración
+
+### 🔧 Variables de Entorno
+Las principales variables están documentadas en [config-main.env](config-main.env).
+
+**Variables importantes:**
+- `KOHA_LANGS="es-ES"` - Configura idioma español
+- `MYSQL_USER` y `MYSQL_PASSWORD` - Credenciales de base de datos
+- `MEMCACHED_SERVERS` - Servidor de cache
+- `MB_HOST` - Servidor RabbitMQ
+
+### 📁 Logs
+Los logs se almacenan en `/var/log/koha` dentro del contenedor.
+
+## 🏭 Entorno de Producción
+
+Para producción, se recomienda usar la configuración en el directorio `prod/` que incluye:
+- Volúmenes persistentes
+- Configuración de seguridad mejorada
+- Scripts de monitoreo
+- Configuración optimizada de base de datos
+
+```bash
+cd prod/
+docker-compose -f docker-compose.prod.yaml up -d
+```
+
+## 🔄 Backup y Migración
+
+### Backup Rápido
+```powershell
+.\backup-simple.ps1
+```
+
+### Migración a Nueva Máquina
+```powershell
+# En máquina destino
+.\restore-koha.ps1 -BackupFile "backup.zip"
+```
+
+## 🆘 Soporte
+
+### 📞 Recursos de Ayuda
+- [Manual Oficial de Koha](https://koha-community.org/manual/24.11/en/html/)
+- [Comunidad Koha](https://koha-community.org/)
+- [Wiki de Koha](https://wiki.koha-community.org/)
+
+### 🐛 Problemas Comunes
+- **Puerto ocupado**: Cambiar puertos en docker-compose.yaml
+- **BD no responde**: Esperar más tiempo para inicialización
+- **Error de idioma**: Verificar variable `KOHA_LANGS`
+
+## 📄 Licencia
+
+Este proyecto incluye configuraciones y mejoras sobre el trabajo original. Consulta [LICENSE](LICENSE) para más detalles.
+
+## 🙏 Créditos
+
+- **Imagen base**: [teogramm/koha](https://hub.docker.com/r/teogramm/koha) en Docker Hub
+- **Scripts originales**: Basados en [koha-community/docker](https://gitlab.com/koha-community/docker/koha-docker)
+- **Mejoras**: Soporte en español, scripts de backup, documentación completa
+
+---
+
+## ⭐ ¿Te resultó útil?
+
+Si este proyecto te ayudó, considera:
+- ⭐ Dar una estrella al repositorio
+- 🐛 Reportar issues o sugerir mejoras
+- 🤝 Contribuir con mejoras
+- 📢 Compartir con otros bibliotecarios
 
