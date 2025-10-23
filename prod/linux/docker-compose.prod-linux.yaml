@@ -1,0 +1,289 @@
+version: "3.9"
+
+networks:
+  koha-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+services:
+  koha:
+    image: teogramm/koha:24.11
+    container_name: koha-prod
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"  # OPAC - solo localhost
+      - "127.0.0.1:8081:8081"  # Staff - solo localhost
+    environment:
+      - MYSQL_SERVER=db
+      - MYSQL_USER=${KOHA_DB_USER}
+      - MYSQL_PASSWORD=${KOHA_DB_PASSWORD}
+      - DB_NAME=${KOHA_DB_NAME}
+      - MEMCACHED_SERVERS=memcached:11211
+      - MB_HOST=rabbitmq
+      - MB_USER=koha
+      - MB_PASS=${RABBITMQ_PASSWORD}
+      - KOHA_LANGS=es-ES en-GB
+      - TZ=${TIMEZONE}
+      - KOHA_INSTANCE=${KOHA_INSTANCE}
+    volumes:
+      - koha-etc:/etc/koha:rw
+      - koha-var:/var/lib/koha:rw
+      - koha-logs:/var/log/koha:rw
+      - koha-uploads:/var/lib/koha/uploads:rw
+      - koha-plugins:/var/lib/koha/plugins:rw
+      - ./config/koha:/etc/koha/sites:ro
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      memcached:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - koha-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+    user: "999:999"  # koha user
+    read_only: false
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+
+  db:
+    image: mariadb:11
+    container_name: koha-db-prod
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${KOHA_DB_NAME}
+      - MARIADB_USER=${KOHA_DB_USER}
+      - MARIADB_PASSWORD=${KOHA_DB_PASSWORD}
+      - MARIADB_CHARACTER_SET_SERVER=utf8mb4
+      - MARIADB_COLLATION_SERVER=utf8mb4_unicode_ci
+      - TZ=${TIMEZONE}
+    volumes:
+      - mariadb-data:/var/lib/mysql:rw
+      - mariadb-logs:/var/log/mysql:rw
+      - ./config/mariadb/my.cnf:/etc/mysql/conf.d/koha.cnf:ro
+      - ./scripts/backup:/backup:rw
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - koha-network
+    ports:
+      - "127.0.0.1:3306:3306"  # Solo acceso local
+    command: >
+      --innodb-buffer-pool-size=1G
+      --innodb-log-file-size=256M
+      --innodb-flush-log-at-trx-commit=2
+      --innodb-file-per-table=1
+      --query-cache-size=128M
+      --query-cache-type=1
+      --max-connections=200
+      --thread-cache-size=16
+      --table-open-cache=2000
+      --tmp-table-size=256M
+      --max-heap-table-size=256M
+      --log-error=/var/log/mysql/error.log
+      --slow-query-log=1
+      --slow-query-log-file=/var/log/mysql/slow.log
+      --long-query-time=2
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 1m
+      start_interval: 10s
+      interval: 1m
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+
+  memcached:
+    image: memcached:1.6-alpine
+    container_name: koha-memcached-prod
+    restart: unless-stopped
+    command: ["-m", "256", "-c", "1024", "-I", "4m"]
+    networks:
+      - koha-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+    security_opt:
+      - no-new-privileges:true
+    user: "memcache"
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: koha-rabbitmq-prod
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=koha
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+      - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbit log_levels [{connection,error},{default,warning}]
+      - TZ=${TIMEZONE}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq:rw
+      - rabbitmq-logs:/var/log/rabbitmq:rw
+      - ./config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./config/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "127.0.0.1:15672:15672"  # Management - solo localhost
+    networks:
+      - koha-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+
+  # Nginx como proxy reverso y SSL termination
+  nginx:
+    image: nginx:alpine
+    container_name: koha-nginx-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx/sites:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - nginx-logs:/var/log/nginx:rw
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - koha
+    networks:
+      - koha-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+
+  # Backup service
+  backup:
+    image: alpine:latest
+    container_name: koha-backup-prod
+    restart: "no"
+    volumes:
+      - mariadb-data:/var/lib/mysql:ro
+      - koha-etc:/etc/koha:ro
+      - koha-var:/var/lib/koha:ro
+      - ./backups:/backups:rw
+      - ./scripts:/scripts:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - TZ=${TIMEZONE}
+      - MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - KOHA_DB_NAME=${KOHA_DB_NAME}
+    networks:
+      - koha-network
+    profiles:
+      - backup
+    command: /scripts/backup-full.sh
+
+  # Monitoring con cAdvisor
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: koha-monitoring-prod
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8090:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    networks:
+      - koha-network
+    profiles:
+      - monitoring
+
+volumes:
+  mariadb-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/mariadb/data
+  mariadb-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/mariadb/logs
+  koha-etc:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/koha/etc
+  koha-var:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/koha/var
+  koha-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/koha/logs
+  koha-uploads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/koha/uploads
+  koha-plugins:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/koha/plugins
+  rabbitmq-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/rabbitmq/data
+  rabbitmq-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/rabbitmq/logs
+  nginx-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_PATH}/nginx/logs
