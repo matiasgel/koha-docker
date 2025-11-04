@@ -20,6 +20,9 @@ prod/volumes/koha/uploads/
 prod/volumes/koha/logs/
 
 # Variables de entorno con datos sensibles
+.env
+CREDENCIALES.txt
+*.credentials
 
 
 # Archivos de configuración específicos del entorno

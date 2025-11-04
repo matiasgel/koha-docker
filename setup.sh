@@ -60,7 +60,10 @@ fi
 # Cargar configuración si existe
 if [[ -f .env ]]; then
     log "📋 Cargando configuración desde .env"
-    source .env
+    # Cargar .env de forma segura, ignorando líneas problemáticas
+    set -a
+    source <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env | sed 's/\r$//')
+    set +a
 else
     warning "Archivo .env no encontrado, usando valores por defecto"
     # Valores por defecto

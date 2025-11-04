@@ -44,8 +44,10 @@ if [[ ! -f .env ]]; then
     exit 1
 fi
 
-# Cargar variables de entorno
-source .env
+# Cargar variables de entorno de forma segura
+set -a
+source <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env | sed 's/\r$//')
+set +a
 info "📋 Configuración cargada desde .env"
 
 # Verificar Docker Compose

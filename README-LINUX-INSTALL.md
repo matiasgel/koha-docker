@@ -17,10 +17,12 @@ cd koha-docker
 ### Paso 2: Configurar Variables de Entorno
 
 ```bash
-# Copiar plantilla de configuración
-cp .env.production .env
+# Opción 1: Generar automáticamente con passwords seguros
+chmod +x generate-env.sh
+./generate-env.sh
 
-# Editar configuración (IMPORTANTE: cambiar passwords)
+# Opción 2: Copiar plantilla y editar manualmente
+cp .env.example .env
 nano .env
 ```
 
