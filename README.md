@@ -3,6 +3,7 @@
 ![Koha](https://img.shields.io/badge/Koha-24.11-blue)
 ![Docker](https://img.shields.io/badge/Docker-Ready-green)
 ![Spanish](https://img.shields.io/badge/Idioma-Español-red)
+![Tested](https://img.shields.io/badge/Tested-2025--11--04-success)
 
 Un setup completo de Koha con Docker que incluye:
 * ✅ **Instalación automática con una sola línea**
@@ -11,6 +12,48 @@ Un setup completo de Koha con Docker que incluye:
 * 📚 **Gestión simplificada** con scripts de manejo
 * 🐳 **Configuración Docker lista para producción**
 * 🔧 **Contraseñas por defecto seguras** (sin configuración manual)
+* ⚡ **Instalación en ~2 minutos** - Probado y verificado
+
+---
+
+## 🎯 Instalación Ultra-Rápida (NUEVO)
+
+**¿Quieres instalar Koha en otro servidor? ¡Usa el nuevo método rápido!**
+
+```bash
+# 1. Clonar repositorio
+git clone https://github.com/matiasgel/koha-docker.git
+cd koha-docker
+
+# 2. Instalar automáticamente
+./quick-install.sh
+
+# 3. Acceder desde navegador
+# http://TU_IP:8081 (Staff Interface)
+# http://TU_IP:8080 (OPAC - Catálogo)
+```
+
+**✅ Probado el 4 de noviembre de 2025 - 100% funcional**
+
+### 📖 Documentación Rápida
+- **[QUICK-DEPLOY.md](QUICK-DEPLOY.md)** - Guía de instalación en 1 minuto
+- **[GUIA-INSTALACION-NUEVA.md](GUIA-INSTALACION-NUEVA.md)** - Guía completa para nuevos servidores
+- **[PRUEBA-REINSTALACION-EXITOSA.md](PRUEBA-REINSTALACION-EXITOSA.md)** - Resultados de pruebas
+
+### 🔑 Credenciales por Defecto (Nuevo Método)
+```
+Base de Datos (para instalador web):
+  Host: db
+  Database: koha_library
+  User: koha_library
+  Password: Koha2024SecurePass
+
+RabbitMQ Management (http://TU_IP:15672):
+  User: koha
+  Password: Rabbit2024SecurePass
+```
+
+---
 
 ## 🚀 Instalación Automática (Recomendado)
 

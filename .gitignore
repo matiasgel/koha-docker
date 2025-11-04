@@ -19,6 +19,14 @@ prod/volumes/rabbitmq/data/
 prod/volumes/koha/uploads/
 prod/volumes/koha/logs/
 
+# Directorios de volúmenes Docker locales
+volumes/
+data/
+
+# Archivos antiguos movidos (backup)
+old-scripts/
+old-docs/
+
 # Variables de entorno con datos sensibles
 .env
 CREDENCIALES.txt

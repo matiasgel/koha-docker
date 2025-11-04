@@ -4,8 +4,8 @@ services:
     container_name: koha-prod
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${KOHA_OPAC_PORT:-8080}:8080"
-      - "127.0.0.1:${KOHA_INTRANET_PORT:-8081}:8081"
+      - "0.0.0.0:${KOHA_OPAC_PORT:-8080}:8080"
+      - "0.0.0.0:${KOHA_INTRANET_PORT:-8081}:8081"
     environment:
       - MYSQL_SERVER=${MYSQL_SERVER:-db}
       - MYSQL_USER=${KOHA_DB_USER:-koha_admin}
@@ -77,7 +77,7 @@ services:
     networks:
       - koha-network
     ports:
-      - "127.0.0.1:3306:3306"
+      - "0.0.0.0:3306:3306"
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
@@ -113,7 +113,7 @@ services:
     networks:
       - koha-network
     ports:
-      - "127.0.0.1:15672:15672"
+      - "0.0.0.0:15672:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 30s
@@ -143,10 +143,7 @@ services:
 
 networks:
   koha-network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.25.0.0/16
+    external: true
 
 volumes:
   koha-etc:
