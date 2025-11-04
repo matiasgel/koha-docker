@@ -20,10 +20,7 @@ prod/volumes/koha/uploads/
 prod/volumes/koha/logs/
 
 # Variables de entorno con datos sensibles
-.env
-.env.local
-.env.production
-.env.staging
+
 
 # Archivos de configuración específicos del entorno
 *-local.*

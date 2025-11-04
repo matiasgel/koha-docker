@@ -1,0 +1,303 @@
+version: "3.9"
+
+# =============================================================================
+# KOHA DOCKER - CONFIGURACIÓN DE PRODUCCIÓN LINUX
+# =============================================================================
+# Docker Compose para producción con volúmenes persistentes
+# Usar con los scripts setup.sh e init.sh
+# =============================================================================
+
+networks:
+  koha-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${NETWORK_SUBNET:-172.20.0.0/16}
+  koha-backend:
+    driver: bridge
+    internal: true
+
+volumes:
+  # Volúmenes persistentes para Koha
+  koha-etc:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:-/opt/koha-docker/data}/koha/etc
+  koha-var:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:-/opt/koha-docker/data}/koha/var
+  koha-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:-/opt/koha-docker/data}/koha/logs
+  koha-uploads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:-/opt/koha-docker/data}/koha/uploads
+  koha-plugins:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:-/opt/koha-docker/data}/koha/plugins
+  
+  # Volúmenes para MariaDB
+  mariadb-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:-/opt/koha-docker/data}/mariadb/data
+  mariadb-conf:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:-/opt/koha-docker/data}/mariadb/conf
+      
+  # Volúmenes para RabbitMQ
+  rabbitmq-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATA_DIR:-/opt/koha-docker/data}/rabbitmq/data
+
+services:
+  # =============================================================================
+  # KOHA - Servicio Principal
+  # =============================================================================
+  koha:
+    image: teogramm/koha:${KOHA_VERSION:-24.11}
+    container_name: koha-prod
+    restart: unless-stopped
+    ports:
+      # Solo bind a localhost por seguridad
+      - "127.0.0.1:${KOHA_OPAC_PORT:-8080}:8080"      # OPAC
+      - "127.0.0.1:${KOHA_INTRANET_PORT:-8081}:8081"  # Staff Interface
+    environment:
+      # Configuración de base de datos
+      - MYSQL_SERVER=${MYSQL_SERVER:-db}
+      - MYSQL_USER=${KOHA_DB_USER:-koha_admin}
+      - MYSQL_PASSWORD=${KOHA_DB_PASSWORD}
+      - DB_NAME=${KOHA_DB_NAME:-koha_production}
+      
+      # Servicios externos
+      - MEMCACHED_SERVERS=${MEMCACHED_SERVERS:-memcached:11211}
+      - MB_HOST=${MB_HOST:-rabbitmq}
+      - MB_PORT=${MB_PORT:-61613}
+      - MB_USER=${MB_USER:-koha}
+      - MB_PASS=${RABBITMQ_PASSWORD}
+      
+      # Configuración regional
+      - KOHA_LANGS=${KOHA_LANGS:-es-ES en-GB}
+      - TZ=${TIMEZONE:-America/Argentina/Buenos_Aires}
+      
+      # Configuración de instancia
+      - KOHA_INSTANCE=${KOHA_INSTANCE:-production}
+      - KOHA_DOMAIN=${KOHA_DOMAIN:-localhost}
+      - KOHA_INTRANET_PORT=${KOHA_INTRANET_PORT:-8081}
+      - KOHA_OPAC_PORT=${KOHA_OPAC_PORT:-8080}
+      - KOHA_INTRANET_PREFIX=${KOHA_INTRANET_PREFIX:-}
+      - KOHA_INTRANET_SUFFIX=${KOHA_INTRANET_SUFFIX:-}
+      - KOHA_OPAC_PREFIX=${KOHA_OPAC_PREFIX:-}
+      - KOHA_OPAC_SUFFIX=${KOHA_OPAC_SUFFIX:-}
+      
+      # Configuración de búsqueda
+      - ZEBRA_MARC_FORMAT=${ZEBRA_MARC_FORMAT:-marc21}
+      - ZEBRA_LANGUAGE=${ZEBRA_LANGUAGE:-es}
+      
+      # Configuración de Plack
+      - KOHA_PLACK_WORKERS=${KOHA_PLACK_WORKERS:-2}
+      
+    volumes:
+      # Volúmenes persistentes principales
+      - koha-etc:/etc/koha:rw
+      - koha-var:/var/lib/koha:rw
+      - koha-logs:/var/log/koha:rw
+      - koha-uploads:/var/lib/koha/uploads:rw
+      - koha-plugins:/var/lib/koha/plugins:rw
+      
+      # Configuraciones del proyecto (solo lectura)
+      - ./files/docker/templates:/docker/templates:ro
+      - ./files/etc/koha-envvars:/etc/koha-envvars:ro
+      - ./files/etc/cron.d:/etc/cron.d:ro
+      - ./files/etc/cron.daily:/etc/cron.daily:ro
+      - ./files/etc/cron.hourly:/etc/cron.hourly:ro
+      - ./files/etc/cron.monthly:/etc/cron.monthly:ro
+      - ./files/etc/logrotate.d:/etc/logrotate.d:ro
+      
+      # Timezone del host
+      - /etc/localtime:/etc/localtime:ro
+      
+    depends_on:
+      db:
+        condition: service_healthy
+      memcached:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+        
+    networks:
+      - koha-network
+      - koha-backend
+      
+    cap_add:
+      - DAC_READ_SEARCH
+      - SYS_NICE
+      
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+      
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # =============================================================================
+  # MARIADB - Base de Datos
+  # =============================================================================
+  db:
+    image: mariadb:11
+    container_name: koha-db
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${KOHA_DB_NAME:-koha_production}
+      - MARIADB_USER=${KOHA_DB_USER:-koha_admin}
+      - MARIADB_PASSWORD=${KOHA_DB_PASSWORD}
+      - TZ=${TIMEZONE:-America/Argentina/Buenos_Aires}
+      
+    volumes:
+      # Datos persistentes
+      - mariadb-data:/var/lib/mysql:rw
+      # Configuración personalizada
+      - mariadb-conf:/etc/mysql/conf.d:ro
+      # Logs
+      - ${LOG_DIR:-/var/log/koha-docker}/mysql:/var/log/mysql:rw
+      # Timezone
+      - /etc/localtime:/etc/localtime:ro
+      
+    networks:
+      - koha-backend
+      
+    ports:
+      # Solo para administración local (opcional)
+      - "127.0.0.1:3306:3306"
+      
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max_connections=200
+      --innodb_buffer_pool_size=1G
+      --innodb_log_file_size=256M
+      --slow_query_log=1
+      --long_query_time=2
+      --general_log=0
+      
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+      
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # =============================================================================
+  # RABBITMQ - Cola de Mensajes
+  # =============================================================================
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: koha-rabbitmq
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=${MB_USER:-koha}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+      - TZ=${TIMEZONE:-America/Argentina/Buenos_Aires}
+      
+    volumes:
+      # Datos persistentes
+      - rabbitmq-data:/var/lib/rabbitmq:rw
+      # Configuración
+      - ${DATA_DIR:-/opt/koha-docker/data}/rabbitmq/conf/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ${DATA_DIR:-/opt/koha-docker/data}/rabbitmq/conf/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      # Timezone
+      - /etc/localtime:/etc/localtime:ro
+      
+    networks:
+      - koha-backend
+      
+    ports:
+      # Management UI (solo localhost)
+      - "127.0.0.1:15672:15672"
+      
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+      
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # =============================================================================
+  # MEMCACHED - Cache en Memoria
+  # =============================================================================
+  memcached:
+    image: memcached:alpine
+    container_name: koha-memcached
+    restart: unless-stopped
+    environment:
+      - TZ=${TIMEZONE:-America/Argentina/Buenos_Aires}
+      
+    command: memcached -m 256 -I 10m
+    
+    networks:
+      - koha-backend
+      
+    logging:
+      driver: "json-file"  
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # =============================================================================
+  # NGINX - Proxy Reverso (Opcional para SSL)
+  # =============================================================================
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: koha-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - koha
+  #   networks:
+  #     - koha-network
