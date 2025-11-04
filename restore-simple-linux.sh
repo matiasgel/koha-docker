@@ -50,16 +50,127 @@ else
     sleep 15
 fi
 
-# Paso 4: Restaurar base de datos (equivalente a Get-Content koha-database.sql | docker exec -i ...)
-echo "📥 Paso 4: Restaurando base de datos..."
-cat koha-database.sql | docker exec -i examples-db-1 mariadb -u root -pexample koha_teolib
+#!/bin/bash
 
-if [ $? -eq 0 ]; then
-    echo "✅ Base de datos restaurada exitosamente"
-else
-    echo "❌ Error al restaurar la base de datos"
+# restore-simple-linux.sh - Restauración para Linux
+BACKUP_FILE="$1"
+
+if [ -z "$BACKUP_FILE" ]; then
+    echo "❌ Error: Especifica el archivo de backup"
+    echo "Uso: $0 backup-file.tar.gz"
+    echo ""
+    echo "Ejemplo:"
+    echo "  $0 koha-simple-20251022-1430.tar.gz"
     exit 1
 fi
+
+if [ ! -f "$BACKUP_FILE" ]; then
+    echo "❌ Error: El archivo $BACKUP_FILE no existe"
+    exit 1
+fi
+
+echo "🔄 Restaurando Koha desde $BACKUP_FILE..."
+
+# Extraer backup
+RESTORE_DIR="koha-restore-$(date +%Y%m%d-%H%M)"
+mkdir -p "$RESTORE_DIR"
+
+echo "📁 Extrayendo backup..."
+if tar -xzf "$BACKUP_FILE" -C "$RESTORE_DIR" --strip-components=1; then
+    echo "✅ Backup extraído correctamente"
+else
+    echo "❌ Error al extraer backup"
+    rm -rf "$RESTORE_DIR"
+    exit 1
+fi
+
+cd "$RESTORE_DIR"
+echo "📂 Trabajando en: $(pwd)"
+
+# Verificar archivos necesarios
+if [ ! -f "koha-database.sql" ]; then
+    echo "❌ Error: koha-database.sql no encontrado"
+    exit 1
+fi
+
+if [ ! -f "docker-compose.yaml" ]; then
+    echo "⚠️ Advertencia: docker-compose.yaml no encontrado, usando configuración actual"
+fi
+
+# Parar servicios existentes
+echo "🛑 Parando servicios existentes..."
+docker-compose down 2>/dev/null || true
+
+# Iniciar base de datos
+echo "🗄️ Iniciando base de datos..."
+docker-compose up -d db
+
+# Esperar inicialización
+echo "⏳ Esperando inicialización de base de datos..."
+sleep 30
+
+# Verificar que la BD esté lista
+echo "🔍 Verificando conectividad de base de datos..."
+for i in {1..10}; do
+    if docker exec examples_db_1 mariadb -u root -pexample -e "SELECT 1;" >/dev/null 2>&1; then
+        echo "✅ Base de datos lista"
+        break
+    fi
+    echo "⏳ Esperando BD... intento $i/10"
+    sleep 10
+    
+    if [ $i -eq 10 ]; then
+        echo "❌ Error: Base de datos no responde después de 100 segundos"
+        exit 1
+    fi
+done
+
+# Restaurar base de datos
+echo "📥 Restaurando base de datos..."
+if cat koha-database.sql | docker exec -i examples_db_1 mariadb -u root -pexample koha_teolib; then
+    echo "✅ Base de datos restaurada correctamente"
+else
+    echo "❌ Error al restaurar base de datos"
+    exit 1
+fi
+
+# Iniciar todos los servicios
+echo "🚀 Iniciando todos los servicios..."
+docker-compose up -d
+
+# Esperar que los servicios se inicialicen
+echo "⏳ Esperando inicialización de servicios..."
+sleep 20
+
+# Verificar estado
+echo "✅ Verificando estado de servicios..."
+docker-compose ps
+
+# Verificar conectividad web
+echo "🌐 Verificando acceso web..."
+sleep 10
+
+if curl -s http://localhost:8081 >/dev/null 2>&1; then
+    echo "✅ Staff Interface accesible en http://localhost:8081"
+else
+    echo "⚠️ Staff Interface aún no responde, puede necesitar más tiempo"
+fi
+
+if curl -s http://localhost:8080 >/dev/null 2>&1; then
+    echo "✅ OPAC accesible en http://localhost:8080"
+else
+    echo "⚠️ OPAC aún no responde, puede necesitar más tiempo"
+fi
+
+echo ""
+echo "🎉 Restauración completada!"
+echo "📂 Archivos temporales en: $(pwd)"
+echo "🌐 Staff Interface: http://localhost:8081"
+echo "🌐 OPAC Público: http://localhost:8080"
+echo "🔑 Credenciales: koha_teolib / example"
+echo ""
+echo "💡 Para limpiar archivos temporales:"
+echo "   rm -rf $(pwd)"
 
 # Paso 5: Iniciar todos los servicios
 echo "🚀 Paso 5: Iniciando todos los servicios..."

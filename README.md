@@ -37,7 +37,7 @@ Un setup completo de Koha con Docker que incluye:
 - Docker y Docker Compose instalados
 - Puertos 8080 y 8081 disponibles
 
-### ⚡ Instalación Express
+### ⚡ Instalación Express (Desarrollo/Testing)
 ```bash
 # Clonar repositorio
 git clone https://github.com/matiasgel/koha-docker.git
@@ -50,21 +50,46 @@ docker-compose up -d
 # Acceder a: http://localhost:8081
 ```
 
+### 🏭 Instalación en Producción (Debian 13)
+```bash
+# Descargar instalador para Debian 13
+curl -O https://raw.githubusercontent.com/matiasgel/koha-docker/main/prod/linux/install-debian13.sh
+
+# Ejecutar instalación automática
+chmod +x install-debian13.sh
+sudo ./install-debian13.sh
+
+# Configurar y iniciar
+cd /opt/koha-docker
+sudo nano .env  # Personalizar configuración
+sudo systemctl start koha-docker
+```
+
 ### 🔑 Credenciales de Acceso
+
+#### Desarrollo (examples/)
 - **Usuario**: `koha_teolib`
 - **Contraseña**: `example`
+
+#### Producción (Debian 13)
+- **Usuario**: `pjnadmin_koha`
+- **Contraseña**: `pjnadmin_db_2024!`
 
 ## 📚 Documentación
 
 ### 📖 Guías Disponibles
 - **[📋 Guía de Instalación Completa](GUIA_INSTALACION_KOHA.md)** - Instalación paso a paso en español
-- **[💾 Guía de Backup y Migración](backup-migration.md)** - Backup automático y migración
+- **[� Instalación en Linux](INSTALACION_LINUX.md)** - Guía específica para sistemas Linux
+- **[�💾 Guía de Backup y Migración](backup-migration.md)** - Backup automático y migración
 - **[📄 Documentación de Backup](README-BACKUP.md)** - Resumen visual de métodos de backup
 
 ### 🛠️ Scripts Incluidos
-- **`backup-simple.ps1`** - Backup rápido de datos esenciales
+- **`backup-simple.ps1`** - Backup rápido para Windows (PowerShell)
+- **`backup-simple-linux.sh`** - Backup rápido para Linux (Bash)
 - **`backup-koha.ps1`** - Backup completo con volúmenes
-- **`restore-koha.ps1`** - Restauración automatizada
+- **`restore-koha.ps1`** - Restauración automatizada (Windows)
+- **`restore-simple-linux.sh`** - Restauración para Linux
+- **`monitor-koha.sh`** - Script de monitoreo para Linux
 - **`migrate-to-github.ps1`** - Migración de repositorio
 
 ## 🏗️ Configuración
@@ -83,6 +108,27 @@ Los logs se almacenan en `/var/log/koha` dentro del contenedor.
 
 ## 🏭 Entorno de Producción
 
+### 🐧 Linux (Recomendado para Producción)
+
+Configuración completa y optimizada para servidores Linux:
+
+```bash
+# Instalación automatizada
+curl -fsSL https://raw.githubusercontent.com/matiasgel/koha-docker/main/prod/linux/install-prod.sh | sudo bash
+```
+
+**Características:**
+- ✅ Nginx como proxy reverso con SSL
+- ✅ Configuración optimizada de MariaDB
+- ✅ Firewall y seguridad automática
+- ✅ Backups programados
+- ✅ Monitoreo del sistema
+- ✅ Servicios systemd
+
+📖 **[Ver documentación completa de Linux](prod/linux/README.md)**
+
+### 🪟 Windows
+
 Para producción, se recomienda usar la configuración en el directorio `prod/` que incluye:
 - Volúmenes persistentes
 - Configuración de seguridad mejorada
@@ -97,13 +143,20 @@ docker-compose -f docker-compose.prod.yaml up -d
 ## 🔄 Backup y Migración
 
 ### Backup Rápido
-```powershell
+```bash
+# Linux
+./backup-simple-linux.sh
+
+# Windows
 .\backup-simple.ps1
 ```
 
 ### Migración a Nueva Máquina
-```powershell
-# En máquina destino
+```bash
+# Linux
+./restore-simple-linux.sh backup.tar.gz
+
+# Windows
 .\restore-koha.ps1 -BackupFile "backup.zip"
 ```
 

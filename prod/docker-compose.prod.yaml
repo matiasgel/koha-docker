@@ -23,7 +23,7 @@ services:
       - ./volumes/koha/covers:/var/lib/koha/covers
       # Plugins de Koha
       - ./volumes/koha/plugins:/var/lib/koha/plugins
-      # Archivos de configuración base desde files/
+      # Archivos de configuración base desde files/ (sin s6-overlay problemático)
       - ../files/docker/templates:/docker/templates:ro
       - ../files/etc/koha-envvars:/etc/koha-envvars:ro
       - ../files/etc/cron.d:/etc/cron.d:ro
@@ -31,7 +31,6 @@ services:
       - ../files/etc/cron.hourly:/etc/cron.hourly:ro
       - ../files/etc/cron.monthly:/etc/cron.monthly:ro
       - ../files/etc/logrotate.d:/etc/logrotate.d:ro
-      - ../files/etc/s6-overlay:/etc/s6-overlay:ro
       # Configuraciones personalizadas de producción
       - ./config/koha/koha-sites-prod.conf:/etc/koha/koha-sites.conf:ro
       - ./config/koha/koha-common-prod.cnf:/etc/mysql/koha-common.cnf:ro
