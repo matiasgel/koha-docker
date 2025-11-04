@@ -240,9 +240,23 @@ docker-compose -f docker-compose.prod.yaml up -d
 .\restore-koha.ps1 -BackupFile "backup.zip"
 ```
 
-## 🆘 Soporte
+## 🆘 Solución de Problemas
 
-### 📞 Recursos de Ayuda
+### RabbitMQ no inicia
+Si RabbitMQ falla con error de inicialización:
+```bash
+sudo bash reset-rabbitmq.sh
+```
+
+Este script automáticamente:
+- Detiene todos los servicios
+- Limpia volúmenes de RabbitMQ
+- Reinicia Docker daemon
+- Inicia servicios correctamente
+
+📖 [Guía completa de RabbitMQ](RABBITMQ-FIX.md)
+
+### 📞 Otros Recursos de Ayuda
 - [Manual Oficial de Koha](https://koha-community.org/manual/24.11/en/html/)
 - [Comunidad Koha](https://koha-community.org/)
 - [Wiki de Koha](https://wiki.koha-community.org/)
@@ -251,6 +265,7 @@ docker-compose -f docker-compose.prod.yaml up -d
 - **Puerto ocupado**: Cambiar puertos en docker-compose.yaml
 - **BD no responde**: Esperar más tiempo para inicialización
 - **Error de idioma**: Verificar variable `KOHA_LANGS`
+- **RabbitMQ no inicia**: Ver [RABBITMQ-FIX.md](RABBITMQ-FIX.md)
 
 ## 📄 Licencia
 
