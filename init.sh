@@ -47,7 +47,12 @@ fi
 
 # Cargar variables de entorno de forma segura
 set -a
-source <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env | sed 's/\r$//')
+while IFS= read -r line; do
+    # Saltar líneas vacías, comentarios y líneas sin =
+    [[ -z "$line" || "$line" =~ ^# || ! "$line" =~ = ]] && continue
+    # Exportar la variable correctamente
+    eval "export $line" 2>/dev/null || true
+done < <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env | sed 's/\r$//')
 set +a
 info "📋 Configuración cargada desde .env"
 

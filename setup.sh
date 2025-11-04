@@ -60,9 +60,15 @@ fi
 # Cargar configuración si existe
 if [[ -f .env ]]; then
     log "📋 Cargando configuración desde .env"
-    # Cargar .env de forma segura, ignorando líneas problemáticas
+    # Cargar .env de forma segura
+    # Ignorar líneas comentadas, líneas vacías, y valores con espacios sin quotes
     set -a
-    source <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env | sed 's/\r$//')
+    while IFS= read -r line; do
+        # Saltar líneas vacías, comentarios y líneas sin =
+        [[ -z "$line" || "$line" =~ ^# || ! "$line" =~ = ]] && continue
+        # Exportar la variable correctamente
+        eval "export $line" 2>/dev/null || true
+    done < <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env | sed 's/\r$//')
     set +a
 else
     warning "Archivo .env no encontrado, usando valores por defecto"
@@ -73,8 +79,8 @@ else
     LOG_DIR="/var/log/koha-docker"
 fi
 
-log "🧹 LIMPIANDO INSTALACIÓN ANTERIOR DE KOHA"
-log "========================================="
+log "🧹 LIMPIEZA DE INSTALACIÓN ANTERIOR DE KOHA"
+log "=========================================="
 
 # Detener y eliminar contenedores de Koha existentes
 info "Deteniendo contenedores de Koha..."
