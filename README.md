@@ -5,11 +5,90 @@
 ![Spanish](https://img.shields.io/badge/Idioma-Español-red)
 
 Un setup completo de Koha con Docker que incluye:
+* ✅ **Instalación automática con una sola línea**
 * ✅ **Soporte completo en español** (es-ES)
 * 🚀 **Scripts de backup automatizados**
-* 📚 **Guía de instalación en español**
+* 📚 **Gestión simplificada** con scripts de manejo
 * 🐳 **Configuración Docker lista para producción**
-* 🔧 **Herramientas de migración y restauración**
+* 🔧 **Contraseñas por defecto seguras** (sin configuración manual)
+
+## 🚀 Instalación Automática (Recomendado)
+
+### Una sola línea - Sin configuración manual
+```bash
+curl -fsSL https://raw.githubusercontent.com/matiasgel/koha-docker/main/auto-install.sh | sudo bash
+```
+
+**¿Qué hace este comando?**
+- ✅ Instala Docker automáticamente si no está presente
+- ✅ Descarga y configura Koha Docker
+- ✅ Usa contraseñas por defecto seguras (no requiere configuración)
+- ✅ Inicia todos los servicios
+- ✅ Configura servicio systemd para auto-inicio
+- ✅ Proporciona credenciales e instrucciones de acceso
+
+**Acceso inmediato después de la instalación:**
+- 📱 **OPAC (Catálogo)**: http://TU-IP:8080
+- 🏢 **Staff Interface**: http://TU-IP:8081
+- 👤 **Usuario**: koha_admin
+- 🔑 **Contraseña**: KohaAdmin#2024$Web456
+
+## 🛠️ Gestión Simplificada
+
+```bash
+# Estado del sistema
+./koha-status.sh
+
+# Gestión de servicios
+./manage.sh start     # Iniciar
+./manage.sh stop      # Detener  
+./manage.sh restart   # Reiniciar
+./manage.sh status    # Estado detallado
+./manage.sh logs      # Ver logs
+./manage.sh backup    # Crear backup
+./manage.sh update    # Actualizar sistema
+```
+
+## 🌐 Acceso desde Toda la Red
+
+Koha Docker está **configurado por defecto para ser accesible desde cualquier computadora de tu red**.
+
+### Acceso Inmediato
+```bash
+# Desde la misma máquina del servidor:
+http://localhost:8080         # OPAC (Catálogo)
+http://localhost:8081         # Staff Interface (Bibliotecario)
+
+# Desde otra máquina de la red:
+http://IP-DEL-SERVIDOR:8080   # OPAC
+http://IP-DEL-SERVIDOR:8081   # Staff Interface
+```
+
+### Obtener IP del Servidor
+```bash
+# En la máquina donde está instalado Koha
+hostname -I
+# Salida: 192.168.1.100
+```
+
+Accede desde cualquier otro equipo en la red:
+- 📱 **Catálogo**: http://192.168.1.100:8080
+- 🏢 **Staff**: http://192.168.1.100:8081
+
+### Configuración de Firewall
+
+El script de instalación automática configura el firewall automáticamente. Si instalas manualmente:
+
+```bash
+# Permitir puertos en UFW (Ubuntu/Debian)
+sudo ufw allow 8080/tcp
+sudo ufw allow 8081/tcp
+
+# O ejecutar el script de configuración
+sudo ./network-setup.sh
+```
+
+📖 **Documentación de Red Completa**: Ver [NETWORK_CONFIG.md](NETWORK_CONFIG.md)
 
 ## 🎯 Características Principales
 
@@ -21,6 +100,7 @@ Un setup completo de Koha con Docker que incluye:
 
 ### 🌐 Idiomas Soportados
 - **Español (es-ES)** - Completamente traducido
+
 - **Inglés (en-GB)** - Idioma por defecto
 - **Múltiples idiomas** disponibles (ver documentación)
 
