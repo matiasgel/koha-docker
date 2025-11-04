@@ -69,16 +69,35 @@ fi
 # Definir directorio de instalación
 INSTALL_DIR="/opt/koha-docker"
 
-# Clonar repositorio
-log "📥 Clonando repositorio Koha Docker..."
-if [[ -d "$INSTALL_DIR" ]]; then
-    log "Actualizando repositorio existente..."
-    cd "$INSTALL_DIR"
-    git pull -q
+# Detectar si estamos dentro de un repositorio git descargado
+if [[ -d .git ]] || git rev-parse --git-dir > /dev/null 2>&1; then
+    log "� Detectado repositorio git local"
+    # Estamos dentro de un directorio git descargado
+    CURRENT_DIR="$(pwd)"
+    
+    # Si ya existe /opt/koha-docker, usarlo
+    if [[ -d "$INSTALL_DIR" ]] && [[ "$CURRENT_DIR" != "$INSTALL_DIR" ]]; then
+        log "📥 Actualizando instalación en $INSTALL_DIR..."
+        cd "$INSTALL_DIR"
+        git pull -q 2>/dev/null || log "Git pull no disponible, continuando..."
+    else
+        # Usar el directorio actual
+        INSTALL_DIR="$CURRENT_DIR"
+        log "✅ Usando directorio actual: $INSTALL_DIR"
+    fi
 else
-    git clone -q https://github.com/matiasgel/koha-docker.git "$INSTALL_DIR"
+    # No estamos en un git, descargar repositorio
+    log "📥 Descargando repositorio Koha Docker..."
+    if [[ -d "$INSTALL_DIR" ]]; then
+        log "Usando directorio existente: $INSTALL_DIR"
+        cd "$INSTALL_DIR"
+    else
+        git clone -q https://github.com/matiasgel/koha-docker.git "$INSTALL_DIR"
+        cd "$INSTALL_DIR"
+    fi
 fi
 
+# Asegurar que estamos en el directorio correcto
 cd "$INSTALL_DIR"
 
 # Crear archivo .env automáticamente con contraseñas por defecto

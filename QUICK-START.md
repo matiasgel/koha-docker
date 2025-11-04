@@ -1,22 +1,30 @@
 # 🚀 QUICK START - KOHA DOCKER EN RED
 
-## ⚡ Instalación (1 minuto)
+## ⚡ Instalación (2 Opciones)
 
+### OPCIÓN 1: Una Línea (La más fácil)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/matiasgel/koha-docker/main/auto-install.sh | sudo bash
 ```
 
-**Espera 3-5 minutos...**
+### OPCIÓN 2: Desde Git Descargado
+```bash
+git clone https://github.com/matiasgel/koha-docker.git
+cd koha-docker
+sudo bash install-local.sh
+```
+
+**Espera 5-10 minutos para que inicie completamente...**
 
 ## 🌐 Acceso Inmediato
 
 ```bash
-# Desde otra máquina:
-hostname -I  # En el servidor → 192.168.1.100
+# Obtén la IP de tu servidor
+hostname -I | awk '{print $1}'
 
-# En tu navegador:
-http://192.168.1.100:8080   # Catálogo
-http://192.168.1.100:8081   # Staff
+# En tu navegador (desde otra máquina):
+http://192.168.1.100:8080   # Catálogo (OPAC)
+http://192.168.1.100:8081   # Staff Interface
 ```
 
 ## 🔑 Inicia Sesión
@@ -54,11 +62,11 @@ Contraseña: KohaAdmin#2024$Web456
 ## ⚙️ Si Hay Problemas
 
 ```bash
-# Verificar configuración
-./verify-network.sh
+# Verificar configuración de red
+./network-check.sh
 
 # Configurar firewall
-sudo ./network-setup.sh
+sudo ./firewall-setup.sh
 
 # Test de conectividad
 ./remote-test.sh 192.168.1.100
@@ -73,14 +81,13 @@ sudo ./network-setup.sh
 ## 💡 Notas
 
 - ✅ Ya está configurado para red
-- ✅ Firewall configurado automáticamente
 - ✅ Accesible desde cualquier máquina
 - ✅ Contraseñas seguras por defecto
 - ⚠️ Cambiar en producción
 
-## 📞 Soporte
+## 📞 Documentación
 
-Ver documentación:
-- `NETWORK_CONFIG.md` - Configuración de red
-- `TROUBLESHOOTING.md` - Solución de problemas
-- `README.md` - Documentación completa
+- [INSTALACION.md](INSTALACION.md) - Guía completa de instalación
+- [ACCESO-RED.md](ACCESO-RED.md) - Configuración de red
+- [GUIA-RAPIDA.md](GUIA-RAPIDA.md) - Guía rápida
+- [README.md](README.md) - Documentación completa
