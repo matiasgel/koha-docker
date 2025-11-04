@@ -54,6 +54,7 @@ KOHA_DB_NAME=koha_production
 KOHA_DB_USER=koha_admin
 KOHA_DB_PASSWORD=$DB_PASS
 MYSQL_ROOT_PASSWORD=$ROOT_PASS
+MARIADB_ROOT_PASSWORD=$ROOT_PASS
 MYSQL_SERVER=db
 DB_NAME=koha_production
 MYSQL_USER=koha_admin
@@ -84,6 +85,7 @@ RABBITMQ_USER=koha
 # Sistema
 INSTALL_DIR=/opt/koha-docker
 DATA_DIR=/opt/koha-docker/data
+DATA_PATH=/opt/koha-docker/data
 BACKUP_DIR=/opt/koha-docker/backups
 LOG_DIR=/var/log/koha-docker
 TIMEZONE=America/Argentina/Buenos_Aires

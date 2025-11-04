@@ -1,0 +1,165 @@
+services:
+  koha:
+    image: teogramm/koha:24.11
+    container_name: koha-prod
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${KOHA_OPAC_PORT:-8080}:8080"
+      - "127.0.0.1:${KOHA_INTRANET_PORT:-8081}:8081"
+    environment:
+      - MYSQL_SERVER=${MYSQL_SERVER:-db}
+      - MYSQL_USER=${KOHA_DB_USER:-koha_admin}
+      - MYSQL_PASSWORD=${KOHA_DB_PASSWORD}
+      - DB_NAME=${KOHA_DB_NAME:-koha_production}
+      - MEMCACHED_SERVERS=${MEMCACHED_SERVERS:-memcached:11211}
+      - MB_HOST=${MB_HOST:-rabbitmq}
+      - MB_PORT=${MB_PORT:-61613}
+      - MB_USER=${MB_USER:-koha}
+      - MB_PASS=${RABBITMQ_PASSWORD}
+      - KOHA_LANGS=${KOHA_LANGS:-es-ES}
+      - TZ=${TIMEZONE:-America/Argentina/Buenos_Aires}
+      - KOHA_INSTANCE=${KOHA_INSTANCE:-production}
+      - ZEBRA_MARC_FORMAT=${ZEBRA_MARC_FORMAT:-marc21}
+      - ZEBRA_LANGUAGE=${ZEBRA_LANGUAGE:-es}
+    volumes:
+      - koha-etc:/etc/koha:rw
+      - koha-var:/var/lib/koha:rw
+      - koha-logs:/var/log/koha:rw
+      - koha-uploads:/var/lib/koha/uploads:rw
+      - koha-plugins:/var/lib/koha/plugins:rw
+      - ./files/docker/templates:/docker/templates:ro
+      - ./files/etc/koha-envvars:/etc/koha-envvars:ro
+      - ./files/etc/cron.d:/etc/cron.d:ro
+      - ./files/etc/cron.daily:/etc/cron.daily:ro
+      - ./files/etc/cron.hourly:/etc/cron.hourly:ro
+      - ./files/etc/cron.monthly:/etc/cron.monthly:ro
+      - ./files/etc/logrotate.d:/etc/logrotate.d:ro
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      memcached:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - koha-network
+    cap_add:
+      - DAC_READ_SEARCH
+      - SYS_NICE
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  db:
+    image: mariadb:11
+    container_name: koha-db
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${KOHA_DB_NAME:-koha_production}
+      - MARIADB_USER=${KOHA_DB_USER:-koha_admin}
+      - MARIADB_PASSWORD=${KOHA_DB_PASSWORD}
+      - TZ=${TIMEZONE:-America/Argentina/Buenos_Aires}
+    volumes:
+      - mariadb-data:/var/lib/mysql:rw
+      - ${DATA_DIR:-/opt/koha-docker/data}/mariadb/conf:/etc/mysql/conf.d:ro
+      - ${LOG_DIR:-/var/log/koha-docker}/mysql:/var/log/mysql:rw
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - koha-network
+    ports:
+      - "127.0.0.1:3306:3306"
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max_connections=200
+      --innodb_buffer_pool_size=1G
+      --innodb_log_file_size=256M
+      --slow_query_log=1
+      --long_query_time=2
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: koha-rabbitmq
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-koha}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+      - TZ=${TIMEZONE:-America/Argentina/Buenos_Aires}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq:rw
+      - ${DATA_DIR:-/opt/koha-docker/data}/rabbitmq/conf/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - koha-network
+    ports:
+      - "127.0.0.1:15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  memcached:
+    image: memcached:alpine
+    container_name: koha-memcached
+    restart: unless-stopped
+    environment:
+      - TZ=${TIMEZONE:-America/Argentina/Buenos_Aires}
+    command: memcached -m 256 -I 10m
+    networks:
+      - koha-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+networks:
+  koha-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+volumes:
+  koha-etc:
+    external: true
+  koha-var:
+    external: true
+  koha-logs:
+    external: true
+  koha-uploads:
+    external: true
+  koha-plugins:
+    external: true
+  mariadb-data:
+    external: true
+  rabbitmq-data:
+    external: true

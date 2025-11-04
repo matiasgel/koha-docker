@@ -40,7 +40,8 @@ log "============================================"
 
 # Verificar que existe el archivo .env
 if [[ ! -f .env ]]; then
-    error "Archivo .env no encontrado. Crear uno basado en .env.production"
+    error "Archivo .env no encontrado. Crear uno basado en .env.example"
+    error "Ejecutar: cp .env.example .env && nano .env"
     exit 1
 fi
 
@@ -65,18 +66,12 @@ fi
 # Verificar que existe docker-compose.yml
 COMPOSE_FILE="docker-compose.yml"
 if [[ ! -f "$COMPOSE_FILE" ]]; then
-    # Intentar con archivos alternativos
-    if [[ -f "prod/linux/docker-compose.prod-linux.yaml" ]]; then
-        COMPOSE_FILE="prod/linux/docker-compose.prod-linux.yaml"
-        info "Usando archivo: $COMPOSE_FILE"
-    elif [[ -f "docker-compose.prod.yaml" ]]; then
-        COMPOSE_FILE="docker-compose.prod.yaml"
-        info "Usando archivo: $COMPOSE_FILE"
-    else
-        error "No se encontró archivo docker-compose válido"
-        exit 1
-    fi
+    error "No se encontró archivo docker-compose.yml"
+    error "Asegúrate de estar en el directorio correcto del proyecto"
+    exit 1
 fi
+
+info "Usando archivo: $COMPOSE_FILE"
 
 # Verificar volúmenes y directorios
 log "🔍 VERIFICANDO PREREQUISITOS"
@@ -94,11 +89,16 @@ fi
 
 info "✅ Estructura de directorios verificada"
 
-# Verificar redes Docker
+# Verificar y limpiar redes Docker si es necesario
 info "Verificando redes Docker..."
-if ! docker network ls | grep -q "koha-network"; then
-    warning "Red koha-network no existe, creándola..."
-    docker network create koha-network --subnet=172.20.0.0/16
+if docker network ls | grep -q "koha-network"; then
+    # Verificar si hay conflictos de subnet
+    if docker network inspect koha-network 2>/dev/null | grep -q "172.20.0.0/16"; then
+        warning "Detectado posible conflicto de red. Limpiando redes..."
+        # Ejecutar limpieza automática
+        chmod +x clean-docker.sh 2>/dev/null || true
+        ./clean-docker.sh 2>/dev/null || true
+    fi
 fi
 
 info "✅ Redes Docker verificadas"
